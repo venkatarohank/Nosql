@@ -16,6 +16,24 @@ class Condition
         this.value=value;
     }
 
+    boolean checkOperation(String val1,String val2)
+    {
+        boolean flag=false;
+    switch (this.operator) {
+        case "#gt":
+            flag= val1.compareTo(val2) >0 ?true:false;
+            break;
+        case "#ls":
+            flag= val1.compareTo(val2)<0;
+            break;
+        case "#eq":
+            flag= val1.compareTo(val2)==0;
+            break;
+
+        }
+        return flag;
+}
+
 
 }
 
@@ -105,11 +123,9 @@ class MyMongoDb
         {
             JSONObject b=(JSONObject)arr.get(i);
 
+                if(query.checkOperation(String.valueOf(b.get(query.field)),query.value))
+                ans.add(b);
 
-            if(query.operator.equals("==")) {
-                if(b.get(query.field).equals(query.value))
-                    ans.add(b);
-            }
 
         }
 
@@ -193,7 +209,7 @@ public class Main {
        // System.out.println(m1.find());
 //        Query qry=new Query();
 
-        Condition c=new Condition("lastName","==","Guasddpta");
+        Condition c=new Condition("lastName","#eq","Guasddpta");
         System.out.println(m1.find(c));
 
 
