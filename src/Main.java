@@ -2,18 +2,22 @@ import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
 import org.json.simple.parser.ParseException;
+
 import java.io.*;
+import java.util.ArrayList;
 import java.util.UUID;
 
 
 class Condition
 {
     String field,value,operator;
+
     Condition(String field,String operator,String value )
     {
         this.field=field;
         this.operator=operator;
         this.value=value;
+
     }
 
     boolean checkOperation(String val1,String val2)
@@ -34,12 +38,27 @@ class Condition
         return flag;
 }
 
-
 }
+
+
 
 class Query
 {
-    Object condition;
+    String type;
+    ArrayList<Object> and;
+    Condition c;
+    Query(Condition c,String type)
+    {
+        this.type=type;
+        this.c=c;
+    }
+    Query(ArrayList<Object> and,String type)
+    {
+        this.type=type;
+        this.and=and;
+    }
+
+
 }
 
 /**
@@ -115,7 +134,7 @@ class MyMongoDb
         }
         return arr;
     }
-    public JSONArray find(Condition query)
+    public JSONArray find(Query query)
     {
         JSONArray arr=find();
         JSONArray ans=new JSONArray();
@@ -123,8 +142,28 @@ class MyMongoDb
         {
             JSONObject b=(JSONObject)arr.get(i);
 
-                if(query.checkOperation(String.valueOf(b.get(query.field)),query.value))
-                ans.add(b);
+            if(query.type=="Condition")
+            {
+                if(query.c.checkOperation(String.valueOf(b.get(query.c.field)),query.c.value))
+                    ans.add(b);
+            }
+            else if(query.type=="And")
+            {
+                boolean flag=true;
+
+                for(int j=0;j<query.and.size();j++)
+                {
+                    Condition c=(Condition)query.and.get(j);
+                    flag&=c.checkOperation(String.valueOf(b.get(c.field)),c.value);
+
+                    if(!flag) break;
+                }
+
+                if(flag) ans.add(b);
+
+            }
+
+
 
 
         }
@@ -210,7 +249,14 @@ public class Main {
 //        Query qry=new Query();
 
         Condition c=new Condition("lastName","#eq","Guasddpta");
-        System.out.println(m1.find(c));
+        Condition c2=new Condition("_id","#eq","2");
+
+        ArrayList<Object> and=new ArrayList<>();
+        and.add(c);
+        and.add(c2);
+        Query q=new Query(c2,"Condition");
+
+        System.out.println(m1.find(q));
 
 
 //        JSONObject query=new JSONObject();
