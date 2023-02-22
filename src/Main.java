@@ -20,6 +20,12 @@ class Condition
 
     }
 
+    /**
+     *
+     * @param val1
+     * @param val2
+     * @return
+     */
     boolean checkOperation(String val1,String val2)
     {
         boolean flag=false;
@@ -45,19 +51,72 @@ class Condition
 class Query
 {
     String type;
-    ArrayList<Object> and;
+    ArrayList<Pair> arr;
     Condition c;
     Query(Condition c,String type)
     {
         this.type=type;
         this.c=c;
     }
-    Query(ArrayList<Object> and,String type)
+    Query(ArrayList<Pair> arr,String type)
     {
         this.type=type;
-        this.and=and;
+        this.arr=arr;
     }
 
+    public boolean AndOperation(ArrayList<Pair> arr,JSONObject obj)
+    {
+
+        for(int j=0;j<arr.size();j++)
+        {
+            Pair p=arr.get(j);
+
+            if(p.s.equals("#cnd"))
+            {
+                Condition c=p.cnd;
+                if(!c.checkOperation(String.valueOf(obj.get(c.field)),c.value))
+                    return false;
+            }
+            else if(p.s.equals("#and"))
+            {
+                if(!AndOperation(p.arr,obj))
+                    return false;
+            } else if (p.s.equals("#or")) {
+                if(!OrOperation(p.arr,obj))
+                    return false;
+            }
+        }
+
+      return true;
+
+    }
+
+    public boolean OrOperation(ArrayList<Pair> arr,JSONObject obj)
+    {
+
+        for(int j=0;j<arr.size();j++)
+        {
+            Pair p=arr.get(j);
+
+            if(p.s.equals("#cnd"))
+            {
+                Condition c=p.cnd;
+                if(c.checkOperation(String.valueOf(obj.get(c.field)),c.value))
+                    return true;
+            }
+            else if(p.s.equals("#and"))
+            {
+                if(AndOperation(p.arr,obj))
+                    return true;
+            } else if (p.s.equals("#or")) {
+                if(OrOperation(p.arr,obj))
+                    return true;
+            }
+        }
+
+        return false;
+
+    }
 
 }
 
@@ -142,29 +201,18 @@ class MyMongoDb
         {
             JSONObject b=(JSONObject)arr.get(i);
 
-            if(query.type=="Condition")
-            {
+            if(query.type=="$cnd") {
                 if(query.c.checkOperation(String.valueOf(b.get(query.c.field)),query.c.value))
                     ans.add(b);
             }
-            else if(query.type=="And")
-            {
-                boolean flag=true;
-
-                for(int j=0;j<query.and.size();j++)
-                {
-                    Condition c=(Condition)query.and.get(j);
-                    flag&=c.checkOperation(String.valueOf(b.get(c.field)),c.value);
-
-                    if(!flag) break;
-                }
-
-                if(flag) ans.add(b);
-
+            else if(query.type=="$and") {
+                if(query.AndOperation(query.arr,b))
+                    ans.add(b);
             }
-
-
-
+            else if(query.type=="or") {
+                if(query.OrOperation(query.arr,b))
+                    ans.add(b);
+            }
 
         }
 
@@ -202,6 +250,24 @@ class MyMongoDb
 }
 
 
+class Pair
+{
+    String s;
+    Condition cnd;
+    ArrayList<Pair> arr;
+
+    Pair(String s,Condition cnd)
+    {
+        this.s=s;
+        this.cnd=cnd;
+    }
+    Pair(String s,ArrayList<Pair> arr)
+    {
+        this.s=s;
+        this.arr=arr;
+    }
+}
+
 public class Main {
 
         public static UUID Generate() {
@@ -218,9 +284,6 @@ public class Main {
         catch (IOException e) {
             System.out.println(e);
         }
-
-
-
 
 
         JSONObject employeeDetails = new JSONObject();
@@ -246,16 +309,19 @@ public class Main {
 
         //read
        // System.out.println(m1.find());
-//        Query qry=new Query();
 
         Condition c=new Condition("lastName","#eq","Guasddpta");
         Condition c2=new Condition("_id","#eq","2");
+        Condition c3=new Condition("_id","#eq","54");
 
-        ArrayList<Object> and=new ArrayList<>();
-        and.add(c);
-        and.add(c2);
-        Query q=new Query(c2,"Condition");
-
+        ArrayList<Pair> and=new ArrayList<>();
+        ArrayList<Pair> or=new ArrayList<>();
+        and.add(new Pair("#cnd",c));
+        or.add(new Pair("#cnd",c2));
+        or.add(new Pair("#cnd",c3));
+        and.add(new Pair("#or",or));
+        Query q=new Query(and,"$and");
+        // query find elements with lastname=Guasddpta and (id=2 or id=4);
         System.out.println(m1.find(q));
 
 
@@ -265,7 +331,8 @@ public class Main {
 //        ob.put("firstName","test");
 //        System.out.println(m1.update());
 
+
+        //remove
 //        System.out.println(m1.remove());
-        System.out.println("Hello world! "+ m1 );
     }
 }
